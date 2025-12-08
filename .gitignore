@@ -1,0 +1,25 @@
+# Node modules (if you add npm dependencies later)
+node_modules/
+package-lock.json
+
+# Temporary files
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Backup files
+*.bak
+*.backup
+
+# Optimized versions during development
+trees-data.geojson
+trees-reduced.geojson
+*.geojson.bak
