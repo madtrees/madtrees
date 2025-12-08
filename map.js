@@ -82,6 +82,11 @@ async function loadDistrictIndex() {
     }
 }
 
+// Helper to yield to browser for better responsiveness
+function yieldToMain() {
+    return new Promise(resolve => setTimeout(resolve, 0));
+}
+
 async function loadDistrict(districtInfo) {
     const districtCode = districtInfo.code;
     
@@ -100,8 +105,11 @@ async function loadDistrict(districtInfo) {
         const data = await response.json();
         
         const districtMarkers = [];
+        const chunkSize = 500; // Process trees in smaller chunks
         
-        data.features.forEach(feature => {
+        for (let i = 0; i < data.features.length; i++) {
+            const feature = data.features[i];
+            
             if (feature.geometry && feature.geometry.coordinates) {
                 const [lng, lat] = feature.geometry.coordinates;
                 const props = feature.properties || {};
@@ -145,14 +153,25 @@ async function loadDistrict(districtInfo) {
                 
                 districtMarkers.push(marker);
             }
-        });
+            
+            // Yield to browser periodically to keep UI responsive
+            if (i > 0 && i % chunkSize === 0) {
+                // Add current chunk to map
+                const currentChunk = districtMarkers.splice(0);
+                markers.addLayers(currentChunk);
+                await yieldToMain();
+            }
+        }
         
-        districtMarkers.forEach(marker => markers.addLayer(marker));
+        // Add remaining markers
+        if (districtMarkers.length > 0) {
+            markers.addLayers(districtMarkers);
+        }
         
-        districtState.districtLayers[districtCode] = districtMarkers;
+        districtState.districtLayers[districtCode] = true; // Just track loaded state
         districtState.loadedDistricts.add(districtCode);
         
-        console.log(`✅ Distrito ${districtCode} cargado: ${districtMarkers.length.toLocaleString()} árboles`);
+        console.log(`✅ Distrito ${districtCode} cargado: ${data.features.length.toLocaleString()} árboles`);
         
     } catch (error) {
         console.error(`Error al cargar distrito ${districtCode}:`, error);
@@ -178,20 +197,20 @@ async function loadVisibleDistricts() {
     districtState.isLoading = true;
     const visibleDistricts = getVisibleDistricts();
     
-    const batchSize = 3;
-    for (let i = 0; i < visibleDistricts.length; i += batchSize) {
-        const batch = visibleDistricts.slice(i, i + batchSize);
-        const promises = batch
-            .filter(d => !districtState.loadedDistricts.has(d.code))
-            .map(d => loadDistrict(d));
+    // Load one district at a time to keep UI responsive
+    for (let i = 0; i < visibleDistricts.length; i++) {
+        const district = visibleDistricts[i];
         
-        if (promises.length > 0) {
-            await Promise.all(promises);
+        if (!districtState.loadedDistricts.has(district.code)) {
+            await loadDistrict(district);
             
             const loaded = districtState.loadedDistricts.size;
             const total = districtState.index.districts.length;
             const percentage = Math.round((loaded / total) * 100);
-            loadingProgress.textContent = `Distritos cargados: ${loaded} / ${total} (${percentage}%)`;
+            loadingProgress.textContent = `Distritos: ${loaded} / ${total} (${percentage}%)`;
+            
+            // Yield to browser between districts
+            await yieldToMain();
         }
     }
     
@@ -223,29 +242,53 @@ function setupPerformanceMonitoring() {
 }
 
 async function initialize() {
-    loadingText.textContent = 'Cargando índice de distritos...';
-    loadingProgress.textContent = 'Preparando mapa...';
+    // Initialize map layer immediately
+    map.addLayer(markers);
+    
+    // Load district index in background
+    loadingText.textContent = 'Cargando árboles...';
+    loadingProgress.textContent = 'Preparando datos...';
     
     const success = await loadDistrictIndex();
     if (!success) {
         showError('No se pudo inicializar el mapa');
+        hideLoading();
         return;
     }
     
-    map.addLayer(markers);
+    // Load trees in background while map is interactive
+    loadVisibleDistricts().then(() => {
+        hideLoading();
+        console.log(`✅ Carga inicial completa`);
+        console.log(`📊 ${districtState.loadedDistricts.size} distritos cargados`);
+    });
     
-    loadingText.textContent = 'Cargando árboles...';
-    await loadVisibleDistricts();
-    
+    // Set up event handlers for lazy loading
     map.on('moveend zoomend', () => {
         loadVisibleDistricts();
     });
     
-    hideLoading();
     setupPerformanceMonitoring();
     
-    console.log(`✅ Mapa inicializado correctamente`);
-    console.log(`📊 ${districtState.loadedDistricts.size} distritos cargados`);
+    console.log(`✅ Mapa inicializado y listo para interacción`);
+}
+
+// Info button toggle
+const infoButton = document.getElementById('info-button');
+const infoPopup = document.getElementById('info-popup');
+
+if (infoButton && infoPopup) {
+    infoButton.addEventListener('click', (e) => {
+        e.stopPropagation();
+        infoPopup.classList.toggle('show');
+    });
+
+    // Close popup when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!infoButton.contains(e.target) && !infoPopup.contains(e.target)) {
+            infoPopup.classList.remove('show');
+        }
+    });
 }
 
 initialize();

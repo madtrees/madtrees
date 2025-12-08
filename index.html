@@ -3,9 +3,34 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="Mapa interactivo de los árboles de Madrid - Visualiza los 790.000 árboles de la ciudad">
-  <title>Madtrees - Mapa de árboles de Madrid</title>
-  <link rel="icon" type="image/x-icon" href="/resources/madrid-favicon.png">
+  
+  <!-- SEO Meta Tags -->
+  <title>Madtrees - Mapa Interactivo de los 790.000 Árboles de Madrid</title>
+  <meta name="description" content="Explora el mapa interactivo de los árboles de Madrid. Descubre especies, ubicaciones y datos de cada árbol de la ciudad. Datos oficiales del Ayuntamiento de Madrid.">
+  <meta name="keywords" content="árboles Madrid, mapa árboles Madrid, vegetación Madrid, especies árboles Madrid, arbolado urbano Madrid, datos abiertos Madrid">
+  <meta name="author" content="Mario Guinda">
+  <link rel="canonical" href="https://madtrees.github.io/madtrees/">
+  
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://madtrees.github.io/madtrees/">
+  <meta property="og:title" content="Madtrees - Mapa Interactivo de los Árboles de Madrid">
+  <meta property="og:description" content="Explora el mapa interactivo de los árboles de Madrid. Descubre especies, ubicaciones y datos de cada árbol.">
+  <meta property="og:image" content="https://madtrees.github.io/madtrees/resources/page-preview.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:locale" content="es_ES">
+  
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:url" content="https://madtrees.github.io/madtrees/">
+  <meta name="twitter:title" content="Madtrees - Mapa Interactivo de los Árboles de Madrid">
+  <meta name="twitter:description" content="Explora el mapa interactivo de los árboles de Madrid.">
+  <meta name="twitter:image" content="https://madtrees.github.io/madtrees/resources/page-preview.png">
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="/resources/madrid-favicon.png">
+  <link rel="apple-touch-icon" href="/resources/madrid-favicon.png">
 
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" 
@@ -31,19 +56,21 @@
       width: 100vw;
     }
 
-    /* Loading overlay */
+    /* Loading indicator */
     #loading-overlay {
       position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
       background: rgba(255, 255, 255, 0.95);
       display: flex;
-      flex-direction: column;
-      justify-content: center;
+      flex-direction: row;
       align-items: center;
-      z-index: 9999;
+      gap: 15px;
+      padding: 12px 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+      z-index: 1000;
       transition: opacity 0.3s;
     }
 
@@ -53,12 +80,13 @@
     }
 
     .spinner {
-      border: 4px solid #f3f3f3;
-      border-top: 4px solid #4CAF50;
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #4CAF50;
       border-radius: 50%;
-      width: 50px;
-      height: 50px;
+      width: 24px;
+      height: 24px;
       animation: spin 1s linear infinite;
+      flex-shrink: 0;
     }
 
     @keyframes spin {
@@ -67,15 +95,21 @@
     }
 
     #loading-text {
-      margin-top: 20px;
-      font-size: 16px;
+      font-size: 14px;
       color: #333;
+      white-space: nowrap;
     }
 
     #loading-progress {
-      margin-top: 10px;
-      font-size: 14px;
+      font-size: 12px;
       color: #666;
+      white-space: nowrap;
+    }
+
+    .loading-content {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
     }
 
     /* Info panel */
@@ -192,15 +226,109 @@
       color: #4CAF50;
       font-weight: bold;
     }
+
+    /* Info button */
+    #info-button {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      width: 40px;
+      height: 40px;
+      background: white;
+      border: none;
+      border-radius: 50%;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      z-index: 1000;
+      transition: background-color 0.2s;
+    }
+
+    #info-button:hover {
+      background-color: #f5f5f5;
+    }
+
+    #info-button img {
+      width: 24px;
+      height: 24px;
+    }
+
+    /* Info popup */
+    #info-popup {
+      position: fixed;
+      bottom: 65px;
+      right: 20px;
+      background: white;
+      padding: 15px 18px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+      z-index: 1000;
+      display: none;
+      min-width: 200px;
+    }
+
+    #info-popup.show {
+      display: block;
+    }
+
+    #info-popup p {
+      margin: 0 0 10px 0;
+      font-size: 14px;
+      color: #333;
+    }
+
+    #info-popup p:last-child {
+      margin-bottom: 0;
+    }
+
+    #info-popup a {
+      color: #4CAF50;
+      text-decoration: none;
+      font-weight: 500;
+    }
+
+    #info-popup a:hover {
+      text-decoration: underline;
+    }
   </style>
 </head>
 
-<body>
-  <!-- Loading Overlay -->
+<body itemscope itemtype="https://schema.org/WebApplication">
+  <!-- Schema.org structured data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "Madtrees",
+    "description": "Mapa interactivo de los árboles de Madrid",
+    "url": "https://madtrees.github.io/madtrees/",
+    "applicationCategory": "MapApplication",
+    "operatingSystem": "Any",
+    "author": {
+      "@type": "Person",
+      "name": "Mario Guinda"
+    },
+    "sourceOrganization": {
+      "@type": "GovernmentOrganization",
+      "name": "Ayuntamiento de Madrid"
+    },
+    "inLanguage": "es",
+    "about": {
+      "@type": "Thing",
+      "name": "Árboles urbanos de Madrid"
+    }
+  }
+  </script>
+  <!-- Loading Indicator -->
   <div id="loading-overlay">
     <div class="spinner"></div>
-    <div id="loading-text">Cargando mapa de árboles...</div>
-    <div id="loading-progress"></div>
+    <div class="loading-content">
+      <div id="loading-text">Cargando árboles...</div>
+      <div id="loading-progress"></div>
+    </div>
   </div>
 
   <!-- Map Container -->
@@ -220,6 +348,18 @@
     <p style="margin-top: 10px; font-size: 12px; color: #999;">
       Datos: Ayuntamiento de Madrid
     </p>
+  </div>
+
+  <!-- Info Button -->
+  <button id="info-button" aria-label="Information">
+    <img src="resources/info-icon.svg" alt="Info">
+  </button>
+
+  <!-- Info Popup -->
+  <div id="info-popup">
+    <p><strong>Created by Mario Guinda</strong></p>
+    <p>GNU General Public License</p>
+    <p><a href="https://github.com/madtrees/madtrees" target="_blank" rel="noopener noreferrer">View on GitHub →</a></p>
   </div>
 
   <!-- Leaflet JS -->
