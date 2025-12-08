@@ -320,14 +320,12 @@ if (locationButton) {
 
         // Center the map on user location only on first location
         if (firstLocation) {
-            map.setView(e.latlng, Math.max(map.getZoom(), 16), {
+            map.setView(e.latlng, 19, {
                 animate: true,
                 duration: 1
             });
             firstLocation = false;
         }
-
-        console.log('📍 User location updated:', e.latlng);
     });
 
     // Handle location error
@@ -341,10 +339,13 @@ if (locationButton) {
     // Location button click handler
     locationButton.addEventListener('click', function() {
         if (!isTracking) {
+            // Reset first location flag to trigger zoom
+            firstLocation = true;
+            
             // Start tracking user location continuously
             map.locate({
                 setView: false,
-                maxZoom: 16,
+                maxZoom: 19,
                 enableHighAccuracy: true,
                 watch: true,  // Enable continuous tracking
                 maximumAge: 10000,  // Accept cached position up to 10 seconds old
