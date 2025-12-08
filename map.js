@@ -291,4 +291,83 @@ if (infoButton && infoPopup) {
     });
 }
 
+// Location button functionality
+const locationButton = document.getElementById('location-button');
+let locateControl = null;
+let userLocationMarker = null;
+let isTracking = false;
+let firstLocation = true;
+
+if (locationButton) {
+    // Handle location found event
+    map.on('locationfound', function(e) {
+        // Update or create marker
+        if (userLocationMarker) {
+            // Update existing marker position smoothly
+            userLocationMarker.setLatLng(e.latlng);
+        } else {
+            // Create a simple blue circle marker
+            userLocationMarker = L.circleMarker(e.latlng, {
+                radius: 8,
+                fillColor: '#2196F3',
+                color: 'white',
+                weight: 3,
+                opacity: 1,
+                fillOpacity: 1,
+                className: 'user-location-marker'
+            }).addTo(map);
+        }
+
+        // Center the map on user location only on first location
+        if (firstLocation) {
+            map.setView(e.latlng, Math.max(map.getZoom(), 16), {
+                animate: true,
+                duration: 1
+            });
+            firstLocation = false;
+        }
+
+        console.log('📍 User location updated:', e.latlng);
+    });
+
+    // Handle location error
+    map.on('locationerror', function(e) {
+        console.error('Location error:', e.message);
+        alert('No se pudo obtener tu ubicación. Por favor, verifica los permisos de ubicación de tu navegador.');
+        isTracking = false;
+        firstLocation = true;
+    });
+
+    // Location button click handler
+    locationButton.addEventListener('click', function() {
+        if (!isTracking) {
+            // Start tracking user location continuously
+            map.locate({
+                setView: false,
+                maxZoom: 16,
+                enableHighAccuracy: true,
+                watch: true,  // Enable continuous tracking
+                maximumAge: 10000,  // Accept cached position up to 10 seconds old
+                timeout: 30000  // 30 second timeout
+            });
+            isTracking = true;
+            locationButton.style.backgroundColor = '#e3f2fd';  // Light blue to indicate active
+            console.log('📍 Location tracking started');
+        } else {
+            // Stop tracking
+            map.stopLocate();
+            isTracking = false;
+            firstLocation = true;
+            locationButton.style.backgroundColor = 'white';
+            
+            // Remove marker
+            if (userLocationMarker) {
+                map.removeLayer(userLocationMarker);
+                userLocationMarker = null;
+            }
+            console.log('❌ Location tracking stopped');
+        }
+    });
+}
+
 initialize();

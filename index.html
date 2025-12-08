@@ -43,6 +43,9 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
   
+  <!-- Leaflet Locate Control CSS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet.locatecontrol@0.85.1/dist/L.Control.Locate.min.css" />
+  
   <style>
     * {
       margin: 0;
@@ -296,6 +299,53 @@
     #info-popup a:hover {
       text-decoration: underline;
     }
+
+    /* Location button */
+    #location-button {
+      position: fixed;
+      bottom: 70px;
+      right: 20px;
+      width: 40px;
+      height: 40px;
+      background: white;
+      border: none;
+      border-radius: 50%;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      z-index: 1000;
+      transition: background-color 0.2s;
+    }
+
+    #location-button:hover {
+      background-color: #f5f5f5;
+    }
+
+    #location-button:active {
+      background-color: #e0e0e0;
+    }
+
+    #location-button svg {
+      width: 20px;
+      height: 20px;
+      fill: #666;
+    }
+
+    /* Simple blue location marker */
+    .user-location-marker {
+      background-color: #2196F3;
+      border: 3px solid white;
+      border-radius: 50%;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+    }
+
+    /* Hide the default locate control accuracy circle */
+    .leaflet-control-locate-circle {
+      display: none;
+    }
   </style>
 </head>
 
@@ -353,6 +403,13 @@
     </p>
   </div>
 
+  <!-- Location Button -->
+  <button id="location-button" aria-label="Find my location">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+      <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+    </svg>
+  </button>
+
   <!-- Info Button -->
   <button id="info-button" aria-label="Information">
     <img src="resources/info-icon.svg" alt="Info">
@@ -371,6 +428,9 @@
   
   <!-- Leaflet MarkerCluster JS -->
   <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+  
+  <!-- Leaflet Locate Control JS -->
+  <script src="https://cdn.jsdelivr.net/npm/leaflet.locatecontrol@0.85.1/dist/L.Control.Locate.min.js"></script>
   
   <!-- Map Script -->
   <script src="./map.js"></script>
