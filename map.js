@@ -13,6 +13,12 @@ const loadingProgress = document.getElementById('loading-progress');
 const performanceIndicator = document.getElementById('performance-indicator');
 const fpsElement = performanceIndicator ? performanceIndicator.querySelector('.fps') : null;
 
+/**
+ * Display an error message to the user.
+ * Hides the loading overlay and shows a temporary error message that auto-removes after 5 seconds.
+ * 
+ * @param {string} message - The error message to display to the user
+ */
 function showError(message) {
     loadingOverlay.classList.add('hidden');
     const errorDiv = document.createElement('div');
@@ -22,12 +28,27 @@ function showError(message) {
     setTimeout(() => errorDiv.remove(), 5000);
 }
 
+/**
+ * Hide the loading overlay with a short delay for smooth transition.
+ * Provides visual feedback that loading is complete.
+ */
 function hideLoading() {
     setTimeout(() => {
         loadingOverlay.classList.add('hidden');
     }, 500);
 }
 
+/**
+ * Marker cluster group configuration for tree markers.
+ * Optimized for performance with chunked loading, dynamic cluster radius based on zoom level,
+ * and disabled animations for better responsiveness with large datasets.
+ * 
+ * Key features:
+ * - Chunked loading: Processes markers in batches to keep UI responsive
+ * - Dynamic cluster radius: Smaller radius at higher zoom levels for better detail
+ * - Clustering disabled at zoom 19: Shows individual markers at maximum zoom
+ * - Removes markers outside visible bounds: Reduces memory usage
+ */
 const markers = L.markerClusterGroup({
     chunkedLoading: true,
     chunkInterval: 100,
@@ -59,6 +80,16 @@ const markers = L.markerClusterGroup({
     }
 });
 
+/**
+ * Global state object for managing district data loading.
+ * Tracks which districts have been loaded to avoid duplicate requests.
+ * 
+ * Properties:
+ * - index: District index JSON containing metadata about all districts
+ * - loadedDistricts: Set of district codes that have been loaded
+ * - districtLayers: Object tracking loaded district layers
+ * - isLoading: Flag to prevent concurrent loading operations
+ */
 const districtState = {
     index: null,
     loadedDistricts: new Set(),
@@ -66,6 +97,12 @@ const districtState = {
     isLoading: false
 };
 
+/**
+ * Load the district index JSON file containing metadata about all districts.
+ * The index includes district codes, names, filenames, tree counts, and file sizes.
+ * 
+ * @returns {Promise<boolean>} True if index loaded successfully, false otherwise
+ */
 async function loadDistrictIndex() {
     try {
         const response = await fetch('./data/districts/districts_index.json');
@@ -82,11 +119,115 @@ async function loadDistrictIndex() {
     }
 }
 
-// Helper to yield to browser for better responsiveness
+/**
+ * Yield control back to the browser to maintain UI responsiveness.
+ * Used during long-running operations to prevent blocking the main thread.
+ * 
+ * @returns {Promise<void>} Promise that resolves immediately, allowing other tasks to run
+ */
 function yieldToMain() {
     return new Promise(resolve => setTimeout(resolve, 0));
 }
 
+/**
+ * Calculate marker radius based on tree size (diameter + height).
+ * Optimized for performance with minimal overhead per marker.
+ * 
+ * Size Calculation:
+ * - Combines diameter (cm) and height (m) with weighted formula
+ * - Diameter weighted at 40%, height weighted at 60% (height prioritized)
+ * - Height converted to cm equivalent: height × 10 × 0.6
+ * - Size = (diameter × 0.4) + (height × 10 × 0.6)
+ * 
+ * Radius Ranges (based on calculated size):
+ * - Small trees (0-20 cm equivalent): 4-6 px
+ * - Medium trees (20-50 cm equivalent): 6-10 px
+ * - Large trees (50-100 cm equivalent): 10-16 px
+ * - Very large trees (100+ cm equivalent): 16-26 px (uses square root scaling)
+ * 
+ * Special Cases:
+ * - Missing/invalid data: returns 4px (small default marker)
+ * - Extremely tall trees (20+ meters): adds +2px bonus (max 28px)
+ * 
+ * Performance: Uses fast property access and pre-computed constants for minimal CPU overhead.
+ */
+function calculateMarkerRadius(props) {
+    const d = props.d;
+    const h = props.h;
+    
+    let size = 0;
+    let hasData = false;
+    let isExtremelyTall = false;
+    
+    if (d && d > 0) {
+        size += d * 0.4;
+        hasData = true;
+    }
+    
+    if (h && h > 0) {
+        size += h * 10 * 0.6;
+        hasData = true;
+        
+        if (h >= 20) {
+            isExtremelyTall = true;
+        }
+    }
+    
+    if (!hasData || size <= 0) {
+        return 4;
+    }
+    
+    let radius;
+    
+    if (size < 20) {
+        radius = 4 + size * 0.1;
+    }
+    else if (size < 50) {
+        radius = 6 + (size - 20) * 0.133333;
+    }
+    else if (size < 100) {
+        radius = 10 + (size - 50) * 0.12;
+    }
+    else {
+        const excess = size - 100;
+        if (excess > 200) {
+            radius = 26;
+        } else {
+            radius = 16 + Math.sqrt(excess * 0.005) * 10;
+        }
+    }
+    
+    if (isExtremelyTall) {
+        radius += 2;
+        if (radius > 28) radius = 28;
+    }
+    
+    return radius;
+}
+
+/**
+ * Load tree data for a specific district and create markers on the map.
+ * 
+ * This function:
+ * - Fetches the district's GeoJSON file
+ * - Processes trees in chunks of 500 for better performance
+ * - Creates circle markers with size and color based on tree properties
+ * - Adds click handlers with popup information
+ * - Yields to browser periodically to keep UI responsive
+ * 
+ * Marker properties:
+ * - Radius: Calculated based on tree diameter and height (see calculateMarkerRadius)
+ * - Color: Based on tree height:
+ *   * < 16m: Regular green (#4CAF50)
+ *   * 16-18.99m: Stronger green (#2E7D32)
+ *   * ≥ 19m: Dark green-purple (#2D4A3A)
+ * 
+ * Popup includes: species, common name, diameter, height, district, neighborhood,
+ * and links to Google Street View and image search.
+ * 
+ * @param {Object} districtInfo - District information object with code, name, and filename
+ * @returns {Promise<void>} Resolves when district is loaded (or skipped if already loaded)
+ */
 async function loadDistrict(districtInfo) {
     const districtCode = districtInfo.code;
     
@@ -114,11 +255,38 @@ async function loadDistrict(districtInfo) {
                 const [lng, lat] = feature.geometry.coordinates;
                 const props = feature.properties || {};
                 
+                // Calculate radius based on tree size
+                const markerRadius = calculateMarkerRadius(props);
+                
+                // Check tree height for color classification
+                const height = props.h || props.height;
+                const isTopTallTree = height && height >= 19; // 19m or more - dark green almost purple
+                const isTallTree = height && height >= 16; // 16m or more - stronger green
+                
+                // Color scheme based on height:
+                // < 16m: regular green
+                // 16m-18.99m: stronger green
+                // ≥ 19m: dark green almost purple
+                let fillColor, borderColor;
+                if (isTopTallTree) {
+                    // 19m or taller: dark green almost purple
+                    fillColor = '#2D4A3A';
+                    borderColor = '#1B3A2A';
+                } else if (isTallTree) {
+                    // 16m or taller (but < 19m): stronger green
+                    fillColor = '#2E7D32';
+                    borderColor = '#1B5E20';
+                } else {
+                    // Regular trees: medium green
+                    fillColor = '#4CAF50';
+                    borderColor = '#2E7D32';
+                }
+                
                 const marker = L.circleMarker([lat, lng], {
                     renderer: canvasRenderer,
-                    radius: 8,
-                    fillColor: '#4CAF50',
-                    color: '#2E7D32',
+                    radius: markerRadius,
+                    fillColor: fillColor,
+                    color: borderColor,
                     weight: 1,
                     opacity: 0.8,
                     fillOpacity: 0.6
@@ -193,6 +361,14 @@ async function loadDistrict(districtInfo) {
     }
 }
 
+/**
+ * Get the list of districts that should be loaded based on current map view.
+ * Currently returns all districts regardless of zoom level or bounds.
+ * 
+ * Future enhancement: Could filter districts based on map bounds for better performance.
+ * 
+ * @returns {Array} Array of district objects from the index, or empty array if index not loaded
+ */
 function getVisibleDistricts() {
     if (!districtState.index) return [];
     
@@ -206,6 +382,15 @@ function getVisibleDistricts() {
     return districtState.index.districts;
 }
 
+/**
+ * Load all visible districts one at a time to keep UI responsive.
+ * Updates loading progress indicator as districts are loaded.
+ * 
+ * Prevents concurrent loading operations using the isLoading flag.
+ * Skips districts that have already been loaded.
+ * 
+ * @returns {Promise<void>} Resolves when all visible districts have been processed
+ */
 async function loadVisibleDistricts() {
     if (districtState.isLoading) return;
     
@@ -232,6 +417,13 @@ async function loadVisibleDistricts() {
     districtState.isLoading = false;
 }
 
+/**
+ * Set up performance monitoring to display visible marker count.
+ * Updates the performance indicator when map is moved or zoomed.
+ * 
+ * The indicator shows the number of visible markers and automatically hides
+ * after 2 seconds of inactivity.
+ */
 function setupPerformanceMonitoring() {
     if (!performanceIndicator) return;
     
@@ -256,6 +448,21 @@ function setupPerformanceMonitoring() {
     setTimeout(updatePerformanceIndicator, 1000);
 }
 
+/**
+ * Initialize the map application.
+ * 
+ * This is the main initialization function that:
+ * 1. Adds the marker cluster group to the map
+ * 2. Loads the district index JSON file
+ * 3. Starts loading visible districts in the background
+ * 4. Sets up event handlers for lazy loading on map movement/zoom
+ * 5. Initializes performance monitoring
+ * 
+ * The map remains interactive during loading, allowing users to pan and zoom
+ * while trees are loaded progressively.
+ * 
+ * @returns {Promise<void>} Resolves when initialization is complete
+ */
 async function initialize() {
     // Initialize map layer immediately
     map.addLayer(markers);
