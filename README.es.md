@@ -17,7 +17,7 @@ Crea un mapa web interactivo para visualizar los árboles de tu ciudad usando da
 Abre tu terminal y ejecuta:
 
 ```bash
-git clone https://github.com/TU_USUARIO/madtrees.git
+git clone https://github.com/madtrees/madtrees.git
 cd madtrees
 ```
 
@@ -375,8 +375,8 @@ Este proyecto es de código abierto. Los datos de árboles pertenecen a la comun
 ## 🌍 Ejemplos
 
 Proyectos usando esta plantilla:
-- Árboles de Madrid: https://github.com/TU_USUARIO/madtrees
-- (¡Agrega tu ciudad aquí!)
+- Árboles de Madrid: https://github.com/madtrees/madtrees
+- Árboles de Barcelona: https://github.com/barcelonatrees/barcelonatrees
 
 ---
 

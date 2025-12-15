@@ -17,7 +17,7 @@ Create an interactive web map to visualize trees in your city using open data. T
 Open your terminal and run:
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/madtrees.git
+git clone https://github.com/madtrees/madtrees.git
 cd madtrees
 ```
 
@@ -375,7 +375,7 @@ This project is open source. Tree data belongs to the community.
 ## 🌍 Examples
 
 Projects using this template:
-- Madrid Trees: https://github.com/YOUR_USERNAME/madtrees
+- Madrid Trees: https://github.com/madtrees/madtrees
 - (Add your city here!)
 
 ---
